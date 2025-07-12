@@ -30,9 +30,9 @@ PRINTER_PRODUCT_ID = 0x0289
 
 @app.route('/imprimir_comanda', methods=['POST'])
 def imprimir_comanda():
-    raw_escpos_data = request.data 
+    data = request.get_json()
     
-    if not raw_escpos_data:
+    if not data:
         logging.warning("Received empty print data.")
         return jsonify({"error": "No se recibieron datos para imprimir."}), 400
 
@@ -40,9 +40,26 @@ def imprimir_comanda():
         p = Usb(PRINTER_VENDOR_ID, PRINTER_PRODUCT_ID)
         logging.info("Impresora USB conectada exitosamente.")
 
-        p.set(align='left', font='a', text_type='normal')
-        
-        p.text(raw_escpos_data.decode('utf-8', errors='ignore'))
+        # --- ID del pedido (centrado, grande) ---
+        p.set(align='center', custom_size=True, width=3, height=3)
+        p.text(f"ID: {data['numero_pedido']}\n\n")
+
+        # --- Lista de productos (alineado a la izquierda, tamaño medio) ---
+        p.set(align='left', custom_size=True, width=2, height=2)
+        for prod in data['productos_detalle']:
+            cantidad = int(prod['cantidad_producto'])
+            nombre = prod['nombre_producto']
+            p.text(f"{cantidad} {nombre}\n")
+        p.text("\n")
+
+        # --- Hora de retiro (centrado, tamaño medio) ---
+        p.set(align='center', custom_size=True, width=2, height=2)
+        p.text(f"{data['para_hora']}\n\n")
+
+        # --- Nombre del cliente (pequeño, alineado a la izquierda) ---
+        #p.set(align='left', font='a', custom_size=True, width=1, height=1)
+        #p.text(f"{data['cliente']}\n")
+
         p.cut()
         p.close()
         
@@ -62,4 +79,5 @@ if __name__ == '__main__':
     port = int(os.environ.get('PRINTER_CLIENT_PORT', 5000)) # Puede leerse de una variable de entorno
     
     logging.info(f"Cliente impresor iniciado en http://{host_ip}:{port}")
-    app.run(host=host_ip, port=port)
+    #app.run(host=host_ip, port=port)
+    app.run(host='192.168.1.16', port=5000, debug=True)
